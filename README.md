@@ -74,6 +74,38 @@ cramit delete-bams RUN            # dry run: shows what would be deleted
 cramit delete-bams --force RUN    # deletes
 ```
 
+## Recommended: the safe way to run it
+
+Deleting BAMs cannot be undone, so it pays to go slowly the first time.
+
+1. **Start with a test run of 2–3 BAMs.** Put their paths in a text file,
+   scan it into a separate run folder, and run it to the end.
+   *Why:* a wrong reference, missing permissions or too little time and
+   memory then show up on 3 BAMs, not on 3,000 queued jobs. A large one also
+   tells you how much time and memory to request for the rest.
+2. **Read the scan summary and `RUN/attention.txt` before converting.**
+   *Why:* BAMs set aside there need a decision from you. If a folder mixes
+   references, give each reference its own run.
+3. **Delete only once `cramit status -v RUN` shows nothing still running,
+   and you have looked at every failure.**
+   *Why:* then you know exactly which BAMs are left, and why.
+4. **Do the dry run of `delete-bams` first and read its log**, then run it
+   with `--force`.
+   *Why:* the log lists every BAM that would be deleted and the reason each
+   kept BAM failed a check.
+5. **Open one or two CRAMs with the tools you use downstream** (IGV, GATK,
+   your pipeline) before deleting.
+   *Why:* some tools need extra files next to the reference (GATK wants
+   `.fai` and `.dict`). Better to find that out while the BAMs still exist.
+6. **If aux tags matter** (UMIs, methylation), run `cramit deep-check` on a
+   few samples before deleting.
+   *Why:* the standard validation does not compare tags.
+7. **Keep the reference safe:** at a stable path, backed up, never deleted.
+   *Why:* a CRAM cannot be read without the exact reference it was made with.
+   Losing the reference means losing the data.
+8. **Back up the CRAMs if the BAMs were backed up.**
+   *Why:* once the BAMs are gone, the CRAMs are the only copy.
+
 ## Convert one BAM
 
 ```bash
