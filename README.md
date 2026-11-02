@@ -1,5 +1,6 @@
 # cramit
 
+[![tests](https://github.com/michandreop/cramit/actions/workflows/tests.yml/badge.svg)](https://github.com/michandreop/cramit/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![samtools](https://img.shields.io/badge/samtools-tested%201.21-brightgreen.svg)](https://www.htslib.org/)
 [![bash](https://img.shields.io/badge/bash-%E2%89%A54.4-4EAA25.svg?logo=gnubash&logoColor=white)](https://www.gnu.org/software/bash/)
