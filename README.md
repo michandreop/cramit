@@ -136,7 +136,9 @@ samtools view -b -T ref.fa.gz -o sample.bam sample.cram
 
 ## Credits
 
-The validation approach is adapted from
-[bam2cram-check](https://github.com/wtsi-hgi/bam2cram-check) by Irina Colgiu
-(Genome Research Ltd). cramit is developed in the Park Lab at Harvard Medical
+The validation idea (comparing `samtools flagstat` and the `samtools stats`
+CHK checksum of the BAM and the CRAM) comes from
+[bam2cram-check](https://github.com/wtsi-hgi/bam2cram-check) by Irina Colgiu,
+Human Genetics Informatics, Wellcome Sanger Institute. cramit is an
+independent implementation, developed in the Park Lab at Harvard Medical
 School. MIT license.
