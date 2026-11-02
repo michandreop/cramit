@@ -1,4 +1,4 @@
-# cramit
+<img src="docs/cramit-logo-beige.svg" alt="cramit" width="420">
 
 [![tests](https://github.com/michandreop/cramit/actions/workflows/tests.yml/badge.svg)](https://github.com/michandreop/cramit/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
