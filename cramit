@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# cramit — convert BAM files to CRAM, prove every CRAM holds exactly the reads
+# of its BAM, and only then delete the BAMs. Run `cramit help` for usage.
+set -euo pipefail
+
+CRAMIT_HOME="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+export CRAMIT_HOME
+CRAMIT_VERSION=2.0.0
+
+usage() {
+    cat <<EOF
+cramit $CRAMIT_VERSION — BAM to CRAM, validated, then BAM deletion
+
+A folder (or list) of BAMs:
+  cramit scan -r REF -o RUN BAM_DIR|BAM_LIST   check every BAM, set up a run directory
+  cramit run RUN                               convert + validate on this machine
+  cramit submit RUN [-- sbatch options]        ... or as a SLURM job array
+  cramit status [-v] RUN                       progress, and what needs attention
+  cramit delete-bams [--force] RUN             delete BAMs whose CRAM is validated
+
+One BAM:
+  cramit convert -r REF BAM                    convert + validate one BAM
+
+Extra check:
+  cramit deep-check -r REF BAM CRAM            compare every record, aux tags included
+
+Run any command with -h for its options. Docs: README.md, docs/SPECIAL_CASES.md
+EOF
+}
+
+cmd="${1:-help}"
+[ $# -gt 0 ] && shift
+case "$cmd" in
+    scan|run|submit|status|convert) exec bash "$CRAMIT_HOME/lib/$cmd.sh" "$@" ;;
+    delete-bams) exec bash "$CRAMIT_HOME/lib/delete_bams.sh" "$@" ;;
+    deep-check)  exec bash "$CRAMIT_HOME/lib/deep_check.sh" "$@" ;;
+    _task)       exec bash "$CRAMIT_HOME/lib/submit.sh" --task "$@" ;;   # run by SLURM
+    help|-h|--help) usage ;;
+    version|--version) echo "cramit $CRAMIT_VERSION" ;;
+    *) echo "cramit: unknown command '$cmd'" >&2; usage >&2; exit 1 ;;
+esac
