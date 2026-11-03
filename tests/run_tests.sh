@@ -145,6 +145,11 @@ check "submit -n: array capped by MaxArraySize, 50 at once" grep -q -- "--array=
 check "submit -n: passes CRAMIT_SBATCH_ARGS and -- options" bash -c "grep -q -- --partition=x $D/sub_dry.out && grep -q -- --account=lab $D/sub_dry.out"
 check "submit -n: says the rest needs another submit"   grep -q "3 more BAM" $D/sub_dry.out
 check "submit -n: submitted nothing"                    not [ -e $D/sbatch.calls ]
+check "submit -n: shows the resources per BAM"          grep -q "4 CPUs, 8G memory, 24:00:00" $D/sub_dry.out
+check "submit -n: shows which samtools the jobs use"    grep -qE "samtools +samtools [0-9]" $D/sub_dry.out
+cramit submit -n $R2 > $D/sub_dry2.out
+check "submit -n: says when no account/partition is set" grep -q "default account and partition" $D/sub_dry2.out
+check "submit -h: explains the cluster settings"        bash -c "'$C/cramit' submit -h | grep -q CRAMIT_SETUP"
 cramit submit -p 7 -m 9G $R2 > $D/sub1.out
 check "submit: calls sbatch with the resources"         grep -q -- "--array=1-3%7 --cpus-per-task=4 --mem=9G" $D/sbatch.calls
 L=$(ls -t $R2/slurm/batch.*.tsv | head -1)

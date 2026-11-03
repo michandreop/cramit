@@ -24,7 +24,9 @@ One BAM:
 Extra check:
   cramit deep-check -r REF BAM CRAM            compare every record, aux tags included
 
-Run any command with -h for its options. Docs: README.md, docs/SPECIAL_CASES.md
+Run any command with -h for its options. On SLURM, start with: cramit submit -h
+then check the plan before submitting:                    cramit submit -n RUN
+Docs: README.md, docs/SPECIAL_CASES.md
 EOF
 }
 

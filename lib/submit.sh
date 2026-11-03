@@ -2,19 +2,32 @@
 # cramit submit — convert and validate the run's BAMs as a SLURM job array.
 #
 # Usage: cramit submit [options] RUN [-- extra sbatch options]
+#
+# Each BAM that is not done yet becomes one array task. The task converts the
+# BAM, validates the CRAM and puts NAME.cram next to the BAM. Job logs go to
+# RUN/slurm/. Run the same command again to resume, or to resubmit BAMs whose
+# job was killed (time limit, memory).
+#
+# Options (the defaults suit whole-genome BAMs):
 #   -c CPUS         CPUs per BAM (default 4)
 #   -m MEM          memory per BAM (default 8G)
 #   -T TIME         time limit per BAM (default 24:00:00)
 #   -p N            at most N BAMs running at once (default 50)
-#   -n              dry run: print the sbatch command, submit nothing
+#   -n              dry run: show the plan and the sbatch command, submit nothing
 #   --retry-failed  also resubmit BAMs that failed before (once you have fixed them)
 #
-# Account, partition and any other sbatch options go after `--`, or in the
-# environment variable CRAMIT_SBATCH_ARGS, e.g.
-#   cramit submit RUN -- --account=mylab --partition=long
+# Fitting it to your cluster:
+#   account, partition   sbatch options go after --, passed on as they are:
+#                          cramit submit RUN -- --account=mylab --partition=long
+#                        `sinfo -s` lists the partitions and their time limits.
+#   samtools from a      export CRAMIT_SETUP="module load samtools/1.21"
+#   module or conda      (every job runs this before it uses samtools)
+#   same options always  export CRAMIT_SBATCH_ARGS="--account=mylab --partition=long"
+#                        Put the exports in a file you source before cramit.
+#   time and memory      submit 2-3 BAMs first, then see what they used:
+#                          sacct -j JOBID -o JobID,Elapsed,MaxRSS
 #
-# Submits only the BAMs that are not done yet, so the same command also
-# resumes a run and retries BAMs whose job was killed (time limit, memory).
+# Before the first real submit, run with -n to check the plan.
 set -euo pipefail
 source "$CRAMIT_HOME/lib/common.sh"
 
@@ -71,13 +84,35 @@ SB=(sbatch --job-name="$JOB" --array="1-${N}%${CAP}" --cpus-per-task="$CPUS" --m
     --output="$RUN/slurm/%A_%a.out" --error="$RUN/slurm/%A_%a.err" "${EXTRA[@]}"
     --wrap="bash $(printf '%q' "$CRAMIT_HOME/cramit") _task $(printf '%q' "$RUN") $(printf '%q' "$LIST")")
 
-if [ "$DRY" -eq 1 ]; then
-    echo "dry run — would submit $N BAM(s):"
-    printf ' %q' "${SB[@]}"; echo
+# The jobs inherit this environment, so samtools must be found here too.
+if [ -n "${CRAMIT_SETUP:-}" ]; then eval "$CRAMIT_SETUP" >/dev/null 2>&1 || true; fi
+if command -v samtools >/dev/null 2>&1; then
+    ST="$(samtools --version 2>/dev/null | awk 'NR==1')"
+    if [ -n "${CRAMIT_SETUP:-}" ]; then ST+=", loaded by CRAMIT_SETUP"; else ST+=" from PATH ($(command -v samtools))"; fi
 else
-    OUT=$("${SB[@]}")
-    echo "$OUT"
-    echo "$N BAM(s), at most $CAP at a time ($CPUS CPUs, $MEM, $TIME each)"
+    ST="NOT FOUND — every job would fail; set CRAMIT_SETUP or put samtools on PATH"
+fi
+if [ ${#EXTRA[@]} -gt 0 ]; then SO="${EXTRA[*]}"; else SO="none, so SLURM uses your default account and partition"; fi
+
+if [ "$DRY" -eq 1 ]; then echo "cramit submit — dry run, nothing is submitted"; else echo "cramit submit"; fi
+NB="$N to convert, one array task each"; [ "$LATER" -eq 0 ] || NB+=" ($LATER more after this array)"
+printf '  %-15s %s\n' \
+    "BAMs"            "$NB" \
+    "each BAM gets"   "$CPUS CPUs, $MEM memory, $TIME" \
+    "at once"         "at most $CAP BAMs" \
+    "sbatch options"  "$SO" \
+    "samtools"        "$ST" \
+    "job logs"        "$RUN/slurm/<job>_<task>.out and .err"
+
+if [ "$DRY" -eq 1 ]; then
+    echo ""
+    echo "sbatch command:"
+    printf ' %q' "${SB[@]}"; echo
+    echo ""
+    echo "Change resources with -c -m -T -p, add sbatch options after -- (see: cramit submit -h)."
+else
+    command -v samtools >/dev/null 2>&1 || die "samtools not found — set CRAMIT_SETUP or put samtools on PATH (see: cramit submit -h)"
+    "${SB[@]}"
     echo "progress:  cramit status $RUN"
 fi
 if [ "$LATER" -gt 0 ]; then

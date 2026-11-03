@@ -57,6 +57,11 @@ Each CRAM is written next to its BAM as `NAME.cram` (plus `NAME.cram.crai`
 when the BAM is coordinate-sorted). It appears under that name only once it
 has been validated.
 
+**First time on a SLURM cluster?** `cramit submit -h` explains what each job
+does and what to set for your cluster. `cramit submit -n RUN` shows what would
+be submitted (resources, sbatch options, which samtools the jobs will use)
+without submitting anything. See also [Settings](#settings).
+
 **3. Check progress**
 
 ```bash
@@ -138,6 +143,8 @@ part of the checksum. If they matter for your data, spot-check a few samples
 with `cramit deep-check -r ref.fa.gz sample.bam sample.cram`.
 
 ## Settings
+
+Every command lists its options with `-h`.
 
 | What | How |
 |---|---|
