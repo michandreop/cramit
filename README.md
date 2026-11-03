@@ -18,6 +18,11 @@ on your own machine or on a SLURM cluster.
 - **Resumable:** stop at any point and run the same command again. Finished
   BAMs are skipped.
 
+**See it work first:** [examples/](examples/) has a detailed example you can
+run yourself. It takes six tiny simulated BAMs through the whole workflow in
+a few seconds, with no SLURM needed, and shows every command's output and every
+file created.
+
 ## Install
 
 You need Linux, bash 4.4+ and [samtools](https://www.htslib.org/) (tested with
@@ -26,17 +31,15 @@ You need Linux, bash 4.4+ and [samtools](https://www.htslib.org/) (tested with
 ```bash
 git clone https://github.com/michandreop/cramit
 cramit/tests/run_tests.sh          # optional self-test, under a minute
+bash cramit/examples/run_demo.sh ~/cramit-demo   # optional: the worked example on tiny BAMs
 export PATH="$PWD/cramit:$PATH"    # or call it as /path/to/cramit/cramit
 ```
 
 ## Convert a folder of BAMs
 
 You only need four commands. `RUN` is any folder you choose: cramit keeps its
-lists, logs and progress there.
-
-To see every step first on six tiny BAMs (a few seconds, no SLURM needed), run
-`bash cramit/examples/run_demo.sh ~/cramit-demo`. The
-[worked example](examples/README.md) walks through its output.
+lists, logs and progress there. The [worked example](examples/) shows each
+step's output and files.
 
 **1. Check the BAMs and set up the run**
 
