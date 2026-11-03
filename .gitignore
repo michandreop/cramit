@@ -1,5 +1,7 @@
-# Run folders made by `cramit scan`, logs from `cramit convert`, and private
-# site settings — none of these belong in the repository.
+# Run folders made by `cramit scan`, logs from `cramit convert`, the demo
+# folder from examples/run_demo.sh, and private site settings — none of these
+# belong in the repository.
 /runs/
 /site/
 cramit_logs/
+cramit-demo/

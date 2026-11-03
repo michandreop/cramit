@@ -12,7 +12,7 @@
 #   3. if the BAM is coordinate-sorted, its CRAM has a non-empty .crai index
 #   4. the CRAM passes samtools quickcheck
 #   5. the CRAM lists the same contigs (names and lengths) as the BAM
-# Each decision is written to RUN/delete-bams.<time>.log.
+# Each decision is written to RUN/delete-bams.<time>.<pid>.log.
 set -uo pipefail
 source "$CRAMIT_HOME/lib/common.sh"
 
@@ -29,7 +29,7 @@ done
 load_run "${ARGS[0]}"
 need_samtools
 
-LOG="$RUN/delete-bams.$(date +%Y%m%d_%H%M%S).log"
+LOG="$RUN/delete-bams.$(date +%Y%m%d_%H%M%S).$$.log"
 { echo "# cramit delete-bams  $(date '+%F %T')  mode: $([ $FORCE -eq 1 ] && echo DELETE || echo DRY-RUN)"
   echo "# action <TAB> reason <TAB> bam"; } > "$LOG" || die "cannot write $LOG"
 

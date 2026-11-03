@@ -34,6 +34,10 @@ export PATH="$PWD/cramit:$PATH"    # or call it as /path/to/cramit/cramit
 You only need four commands. `RUN` is any folder you choose: cramit keeps its
 lists, logs and progress there.
 
+To see every step first on six tiny BAMs (a few seconds, no SLURM needed), run
+`bash cramit/examples/run_demo.sh ~/cramit-demo`. The
+[worked example](examples/README.md) walks through its output.
+
 **1. Check the BAMs and set up the run**
 
 ```bash

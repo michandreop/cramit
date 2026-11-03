@@ -194,7 +194,8 @@ check "keeps: CRAM contigs differ from the BAM"         grep -qE "^SKIP	(contigs
 check "keeps: symlinked BAM"                            logged SKIP bam_is_symlink $B2/link.bam $G
 check "dry run deleted nothing"                         bash -c "[ -e $B2/e.bam ] && grep -q 'DRY RUN' $D/del_dry.out"
 cramit delete-bams --force $R2 > /dev/null
-check "--force deletes the safe BAM and its .bai"       bash -c "[ ! -e $B2/e.bam ] && [ ! -e $B2/e.bam.bai ] && [ -e $B2/e.cram ]"
+check "dry run and --force each keep their own log"     [ "$(ls $R2/delete-bams.*.log | wc -l)" -eq 2 ]
+check "--force deletes the safe BAM and its .bai"      bash -c "[ ! -e $B2/e.bam ] && [ ! -e $B2/e.bam.bai ] && [ -e $B2/e.cram ]"
 check "--force keeps every BAM that failed a check"     bash -c "[ -e $B2/a.bam ] && [ -e $B2/b.bam ] && [ -e $B2/c.bam ] && [ -e $B2/d.bam ]"
 check "--force leaves the symlink target alone"         [ -e $B/qname.bam ]
 cramit delete-bams --force $R1 > /dev/null

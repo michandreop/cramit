@@ -13,3 +13,5 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y samtools
       - name: Run tests
         run: samtools --version | head -1 && bash tests/run_tests.sh
+      - name: Run the worked example
+        run: bash examples/run_demo.sh "$RUNNER_TEMP/cramit-demo"

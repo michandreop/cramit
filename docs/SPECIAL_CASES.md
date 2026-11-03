@@ -186,7 +186,7 @@ the same BAM never runs twice.
 
 `delete-bams` redoes every check on disk at the moment of deletion. If one
 fails, the BAM is kept and the reason is written to
-`RUN/delete-bams.<time>.log`:
+`RUN/delete-bams.<time>.<pid>.log`:
 
 | Reason | Meaning |
 |---|---|
