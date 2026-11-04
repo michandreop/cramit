@@ -175,11 +175,22 @@ that hit their time limit.
 ## Reading the CRAMs later
 
 A CRAM needs its reference to be decoded, so keep the reference at a stable
-path. To get a BAM back:
+path. Each CRAM's header records that path (`UR`) and the checksum of every
+contig (`M5`). To make the reference easy to find for anyone browsing the
+folders, link it next to the CRAMs:
 
 ```bash
-samtools view -b -T ref.fa.gz -o sample.bam sample.cram
+cramit link-ref RUN     # adds ref_for_bam_reconstruction.fa.gz (+ index) next to each CRAM
 ```
+
+To get a BAM back:
+
+```bash
+samtools view -b -T ref_for_bam_reconstruction.fa.gz -o sample.bam sample.cram
+```
+
+Always give `-T`. Without it, samtools first tries to download the
+reference from EBI into `~/.cache`.
 
 ## Credits
 

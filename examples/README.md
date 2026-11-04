@@ -20,7 +20,8 @@ have notes added. Paths are shortened; your times, sizes and IDs will differ.
 [4. See what needs attention](#4-see-what-needs-attention) ·
 [5. Fix and retry](#5-fix-and-retry) ·
 [6. Delete the BAMs](#6-delete-the-bams) ·
-[7. Read a CRAM](#7-read-a-cram)
+[7. Link the reference](#7-link-the-reference) ·
+[8. Read a CRAM](#8-read-a-cram)
 
 ## The demo data
 
@@ -288,18 +289,57 @@ bams
 The `.bai` index went with its BAM. `sampleD` and `sampleE` are still there
 for you to deal with.
 
-## 7. Read a CRAM
+## 7. Link the reference
 
-A CRAM is read like a BAM, but needs the reference it was made with:
+A CRAM can only be read with the reference it was made with. Its header
+records the reference's path, but nothing in the folder shows it. `link-ref`
+puts a link to it, and to its index, next to every CRAM:
 
 ```
-$ samtools view -T ref/ref.fa bams/sampleA.cram chr1:2000-2100 | head -3 | cut -f1-6
+$ cramit link-ref run
+cramit link-ref: ~/cramit-demo/run
+  reference              ~/cramit-demo/ref/ref.fa
+  link                   ref_for_bam_reconstruction.fa (+ index)
+  folders with CRAMs     2
+    linked now           2
+    already linked       0
+    kept, name taken     0
+    could not write      0
+
+rebuild a BAM:  samtools view -b -T ref_for_bam_reconstruction.fa -o sample.bam sample.cram   (in the CRAM's folder)
+```
+
+```
+bams
+├── batch2
+│   ├── ref_for_bam_reconstruction.fa -> ~/cramit-demo/ref/ref.fa
+│   ├── ref_for_bam_reconstruction.fa.fai -> ~/cramit-demo/ref/ref.fa.fai
+│   └── sampleC.cram
+├── ref_for_bam_reconstruction.fa -> ~/cramit-demo/ref/ref.fa
+├── ref_for_bam_reconstruction.fa.fai -> ~/cramit-demo/ref/ref.fa.fai
+├── sampleA.cram
+├── sampleA.cram.crai
+├── sampleB.cram
+├── sampleD.bam
+├── sampleE.bam
+├── sampleF.cram
+└── sampleF.cram.crai
+```
+
+It never replaces a file that is already there, and it is safe to run again.
+
+## 8. Read a CRAM
+
+A CRAM is read like a BAM, given its reference:
+
+```
+$ samtools view -T bams/ref_for_bam_reconstruction.fa bams/sampleA.cram chr1:2000-2100 | head -3 | cut -f1-6
 read0294	0	chr1	1910	60	100M
 read0069	0	chr1	1914	60	100M
 read0222	0	chr1	1939	60	100M
 ```
 
-To get a BAM back: `samtools view -b -T ref/ref.fa -o sampleA.bam bams/sampleA.cram`.
+To get a BAM back: `samtools view -b -T bams/ref_for_bam_reconstruction.fa -o sampleA.bam bams/sampleA.cram`.
 
 ---
 

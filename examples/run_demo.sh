@@ -49,12 +49,17 @@ show cat run/delete-bams.*.log
 show cramit delete-bams --force run
 tree_ bams
 
-step "7. Read a CRAM"
-printf '\n$ samtools view -T ref/ref.fa bams/sampleA.cram chr1:2000-2100 | head -3 | cut -f1-6\n'
-samtools view -T ref/ref.fa bams/sampleA.cram chr1:2000-2100 | head -3 | cut -f1-6
+step "7. Link the reference next to the CRAMs"
+show cramit link-ref run
+tree_ bams
+
+step "8. Read a CRAM"
+printf '\n$ samtools view -T bams/ref_for_bam_reconstruction.fa bams/sampleA.cram chr1:2000-2100 | head -3 | cut -f1-6\n'
+samtools view -T bams/ref_for_bam_reconstruction.fa bams/sampleA.cram chr1:2000-2100 | head -3 | cut -f1-6
 
 # The outcome the walkthrough describes; a failure here means the demo broke.
-for f in bams/sampleA.cram bams/sampleA.cram.crai bams/sampleB.cram bams/batch2/sampleC.cram bams/sampleF.cram bams/sampleD.bam bams/sampleE.bam; do
+for f in bams/sampleA.cram bams/sampleA.cram.crai bams/sampleB.cram bams/batch2/sampleC.cram bams/sampleF.cram bams/sampleD.bam bams/sampleE.bam \
+         bams/ref_for_bam_reconstruction.fa bams/batch2/ref_for_bam_reconstruction.fa.fai; do
     [ -s "$f" ] || { echo "demo FAILED: $f missing" >&2; exit 1; }
 done
 for f in bams/sampleA.bam bams/sampleB.bam bams/batch2/sampleC.bam bams/sampleF.bam; do

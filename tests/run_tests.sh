@@ -206,6 +206,17 @@ cramit run --retry-failed -t 1 $R1 > /dev/null 2>&1; cramit status $R1 > $D/stat
 check "after deletion, done BAMs stay done"             [ "$(state $B/coord.bam $R1)" = done ]
 check "status counts deleted BAMs"                      grep -q "already deleted" $D/status1d.out
 
+echo "== link-ref"
+echo "not a link" > $B/q/ref_for_bam_reconstruction.fa
+cramit link-ref $R1 > $D/link1.out; rc=$?
+check "link-ref: reference and index linked next to CRAMs" bash -c "[ \"\$(readlink $B/ref_for_bam_reconstruction.fa)\" = $REF ] && [ \"\$(readlink $B/ref_for_bam_reconstruction.fa.fai)\" = $REF.fai ]"
+check "link-ref: a BAM rebuilds from the link alone"    bash -c "[ \"\$(samtools view -c -T $B/ref_for_bam_reconstruction.fa $B/coord.cram)\" = \"\$(samtools view -c -T $REF $B/coord.cram)\" ]"
+check "link-ref: an existing file of that name is kept" bash -c "[ $rc -eq 1 ] && grep -q 'name taken: $B/q/' $D/link1.out && grep -q 'not a link' $B/q/ref_for_bam_reconstruction.fa"
+rm $B/q/ref_for_bam_reconstruction.fa
+cramit link-ref $R1 > $D/link2.out; rc=$?
+check "link-ref: second run links the rest, keeps the others" bash -c "[ $rc -eq 0 ] && grep -qE 'linked now +1$' $D/link2.out && [ -L $B/q/ref_for_bam_reconstruction.fa ]"
+check "link-ref --name: another link name"              bash -c "cramit() { \"$C/cramit\" \"\$@\"; }; cramit link-ref --name myref $R1 > /dev/null && [ -L $B/myref.fa ]"
+
 echo "== convert (one BAM)"
 X=$D/single; mkdir -p $X/cwd; cp $D/other.bam $X/one.bam; cp $D/other.bam $X/clash.bam; cp $B/coord.cram $X/clash.cram
 (cd $X/cwd && "$C/cramit" convert -r $REF -o $X/out -t 1 $X/one.bam > /dev/null 2>&1); rc=$?
