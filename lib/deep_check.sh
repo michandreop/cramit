@@ -87,8 +87,10 @@ BEGIN {
 }
 {
     if ($1 == "" || $2 == "" || NF != 2) {
-        stop = $2 == "" ? "the CRAM has fewer records than the BAM" : "the CRAM has more records than the BAM"
-        stopat = recs + 1; print "" > early; exit
+        # the side that ran out ended by itself; the other one was cut off
+        if ($2 == "") { stop = "the CRAM has fewer records than the BAM"; print "cram" > early }
+        else          { stop = "the CRAM has more records than the BAM";  print "bam" > early }
+        stopat = recs + 1; exit
     }
     na = split($1, a, "\t"); nb = split($2, b, "\t")
     if (a[1] != b[1]) {
@@ -154,11 +156,15 @@ END {
 }' > "$T/report"
 rc=${PIPESTATUS[1]}
 wait "$pa"; ra=$?; wait "$pb"; rb=$?; pa=""
-# samtools must end cleanly; when the comparison stopped early it is stopped
-# by a broken pipe (exit 141), which is fine.
+# samtools must end cleanly. When the comparison stopped early, a samtools
+# still writing was cut off (killed by SIGPIPE, or a write error where SIGPIPE
+# is ignored, as on GitHub Actions), so its exit status says nothing. A side
+# that ran out of records by itself must still have ended cleanly.
+ended=""; [ ! -e "$T/early" ] || ended=$(cat "$T/early")
 for side in bam:$ra cram:$rb; do
     r=${side#*:}
-    if [ "$r" -ne 0 ] && ! { [ "$r" -eq 141 ] && [ -e "$T/early" ]; }; then
+    if [ -e "$T/early" ] && [ "${side%%:*}" != "$ended" ]; then continue; fi
+    if [ "$r" -ne 0 ]; then
         echo "cramit deep-check: samtools could not read the ${side%%:*} (exit $r):" >&2
         sed -n '1,5p' "$T/${side%%:*}.err" >&2
         exit 2
