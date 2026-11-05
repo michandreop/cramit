@@ -5,3 +5,7 @@
 /site/
 cramit_logs/
 cramit-demo/
+
+# crash dumps
+core
+core.[0-9]*

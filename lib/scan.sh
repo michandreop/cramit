@@ -98,14 +98,22 @@ check_bam() {
                     if (sn != "") md5[sn] = tolower(m)
                 }
             }
-            function add(list, n, item) { return n <= 3 ? list (n > 1 ? ", " : "") item : list }
-            function more(n) { return n > 3 ? ", +" (n - 3) " more" : "" }
+            function add(list, n, item) {
+                if (n > 3) return list
+                if (n > 1) return list ", " item
+                return item
+            }
+            function more(n) { if (n > 3) return ", +" (n - 3) " more"; return "" }
             $1 == "@SQ" { sn = ""; ln = ""; m = ""; as = ""; ur = ""
                 for (i = 2; i <= NF; i++) {
                     if ($i ~ /^SN:/) sn = substr($i, 4); else if ($i ~ /^LN:/) ln = substr($i, 4)
                     else if ($i ~ /^M5:/) m = tolower(substr($i, 4))
                     else if ($i ~ /^AS:/) as = $i; else if ($i ~ /^UR:/) ur = $i }
-                if (names == "") names = (as ur == "") ? "-" : as (as != "" && ur != "" ? " " : "") ur
+                if (names == "") {
+                    names = "-"
+                    if (as != "" && ur != "") names = as " " ur
+                    else if (as != "" || ur != "") names = as ur
+                }
                 if (!(sn in len)) mlist = add(mlist, ++miss, sn)
                 else if (len[sn] != ln) llist = add(llist, ++lenbad, sn " is " ln " in the BAM, " len[sn] " in the reference")
                 else if (m != "" && md5[sn] != "" && md5[sn] != m) clist = add(clist, ++m5bad, sn) }

@@ -130,7 +130,10 @@ BEGIN {
     if (limit && recs >= limit) { print "" > early; exit }
 }
 END {
-    printf "  records compared        %d%s\n", recs, limit && recs >= limit ? " (the first " limit ")" : (stop ? "" : " (all)")
+    scope = " (all)"
+    if (stop != "") scope = ""
+    if (limit && recs >= limit) scope = " (the first " limit ")"
+    printf "  records compared        %d%s\n", recs, scope
     printf "  unmapped reads          %d\n", unmapped
     if (norm || added) {
         print "  expected differences (see docs/SPECIAL_CASES.md):"
@@ -145,7 +148,8 @@ END {
         if (sa != "") printf "        BAM:  %s\n        CRAM: %s\n", cut_(sa), cut_(sb)
     }
     if (other || stop != "") { print "DIFFERENT"; exit 1 }
-    print (norm || added) ? "IDENTICAL apart from the expected differences above" : "IDENTICAL"
+    if (norm || added) print "IDENTICAL apart from the expected differences above"
+    else print "IDENTICAL"
     exit 0
 }' > "$T/report"
 rc=${PIPESTATUS[1]}

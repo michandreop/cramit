@@ -14,7 +14,13 @@ if [ -n "${CRAMIT_SETUP:-}" ]; then eval "$CRAMIT_SETUP" >/dev/null 2>&1; fi
 command -v samtools >/dev/null || { echo "samtools not available (put it on PATH or set CRAMIT_SETUP)"; exit 2; }
 
 pass=0; fail=0
-check() { local name="$1"; shift; if "$@" >/dev/null 2>&1; then echo "PASS  $name"; pass=$((pass+1)); else echo "FAIL  $name"; fail=$((fail+1)); fi; }
+check() {
+    local name="$1"; shift
+    if "$@" >/dev/null 2>&1; then echo "PASS  $name"; pass=$((pass+1)); return; fi
+    echo "FAIL  $name"; fail=$((fail+1))
+    # on GitHub Actions, also as an annotation (readable without opening the log)
+    [ "${GITHUB_ACTIONS:-}" != true ] || echo "::error title=test failed::$name"
+}
 not()    { ! "$@"; }
 cramit() { "$C/cramit" "$@"; }
 key()    { echo "$(basename "$1" .bam)__$(printf '%s' "$1" | md5sum | cut -c1-8)"; }
@@ -256,9 +262,12 @@ cramit deep-check -r $REF $X/tags.bam $X/tags_bad.cram > /dev/null; rc=$?
 check "deep-check: a changed tag is caught"             [ $rc -eq 1 ]
 mkdir -p $X/t; cp $X/tags.bam $X/t/tags.bam; cp $X/tags_bad.cram $X/t/tags.cram
 check "  ...which the standard validation does not see" cramit convert -r $REF -l $X/l6 $X/t/tags.bam
-# old-BWA style: unmapped reads that keep a CIGAR and MAPQ; no MD/NM in the BAM
+# old-BWA style: unmapped reads that keep a CIGAR and MAPQ; no MD/NM in the BAM.
+# The CRAM is built from the form a CRAM reader returns (CIGAR * and MAPQ 0 on
+# unmapped reads, MD/NM on mapped ones), so the test holds for any samtools.
 S view -h $D/other.bam | awk 'BEGIN{OFS="\t"} /^@/{print;next} {n++} n%10==0{$2=$2+4} {print}' | S view -b -o $X/unm.bam -
-S view -C -T $REF -o $X/unm.cram $X/unm.bam
+S view -h $X/unm.bam | awk 'BEGIN{OFS="\t"} /^@/{print;next} int($2/4)%2{$5=0; $6="*"} {print}' \
+    | S calmd -b - $REF | S view -C -T $REF -o $X/unm.cram -
 cramit deep-check -r $REF $X/unm.bam $X/unm.cram > $X/dc1.out; rc=$?
 check "deep-check: unmapped CIGAR/MAPQ dropped by CRAM is expected" bash -c "[ $rc -eq 0 ] && grep -q 'CIGAR/MAPQ CRAM does not store  500 (CIGAR 500, MAPQ 500)' $X/dc1.out"
 check "deep-check: MD/NM added by the CRAM reader is expected" bash -c "grep -q 'MD/NM tags by the CRAM reader' $X/dc1.out && grep -q '^IDENTICAL apart' $X/dc1.out"
