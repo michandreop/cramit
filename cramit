@@ -18,12 +18,14 @@ A folder (or list) of BAMs:
   cramit status [-v] RUN                       progress, and what needs attention
   cramit delete-bams [--force] RUN             delete BAMs whose CRAM is validated
   cramit link-ref RUN                          link the reference next to the CRAMs
+  cramit redo RUN SAMPLE...                    convert some BAMs again
 
 One BAM:
   cramit convert -r REF BAM                    convert + validate one BAM
 
 Extra check:
-  cramit deep-check -r REF BAM CRAM            compare every record, aux tags included
+  cramit deep-check RUN SAMPLE                 compare every field of every record
+  cramit deep-check -r REF BAM CRAM            ... for a BAM outside a run
 
 Run any command with -h for its options. On SLURM, start with: cramit submit -h
 then check the plan before submitting:                    cramit submit -n RUN
@@ -37,6 +39,7 @@ case "$cmd" in
     scan|run|submit|status|convert) exec bash "$CRAMIT_HOME/lib/$cmd.sh" "$@" ;;
     delete-bams) exec bash "$CRAMIT_HOME/lib/delete_bams.sh" "$@" ;;
     link-ref)    exec bash "$CRAMIT_HOME/lib/link_ref.sh" "$@" ;;
+    redo)        exec bash "$CRAMIT_HOME/lib/redo.sh" "$@" ;;
     deep-check)  exec bash "$CRAMIT_HOME/lib/deep_check.sh" "$@" ;;
     _task)       exec bash "$CRAMIT_HOME/lib/submit.sh" --task "$@" ;;   # run by SLURM
     help|-h|--help) usage ;;

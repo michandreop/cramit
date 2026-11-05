@@ -91,7 +91,7 @@ The two BAMs set aside are left alone:
 
 ```
 $ cat run/attention.txt
-WRONG_REFERENCE	2 contig(s) not in the reference	~/cramit-demo/bams/sampleD.bam
+WRONG_REFERENCE	2 contig(s) not in the reference (1, 2)	~/cramit-demo/bams/sampleD.bam
 CORRUPT	no end-of-file marker: truncated, or still being written	~/cramit-demo/bams/sampleE.bam
 ```
 

@@ -98,17 +98,22 @@ check_bam() {
                     if (sn != "") md5[sn] = tolower(m)
                 }
             }
-            $1 == "@SQ" { sn = ""; ln = ""; m = ""
+            function add(list, n, item) { return n <= 3 ? list (n > 1 ? ", " : "") item : list }
+            function more(n) { return n > 3 ? ", +" (n - 3) " more" : "" }
+            $1 == "@SQ" { sn = ""; ln = ""; m = ""; as = ""; ur = ""
                 for (i = 2; i <= NF; i++) {
                     if ($i ~ /^SN:/) sn = substr($i, 4); else if ($i ~ /^LN:/) ln = substr($i, 4)
-                    else if ($i ~ /^M5:/) m = tolower(substr($i, 4)) }
-                if (!(sn in len)) miss++
-                else if (len[sn] != ln) lenbad++
-                else if (m != "" && md5[sn] != "" && md5[sn] != m) m5bad++ }
+                    else if ($i ~ /^M5:/) m = tolower(substr($i, 4))
+                    else if ($i ~ /^AS:/) as = $i; else if ($i ~ /^UR:/) ur = $i }
+                if (names == "") names = (as ur == "") ? "-" : as (as != "" && ur != "" ? " " : "") ur
+                if (!(sn in len)) mlist = add(mlist, ++miss, sn)
+                else if (len[sn] != ln) llist = add(llist, ++lenbad, sn " is " ln " in the BAM, " len[sn] " in the reference")
+                else if (m != "" && md5[sn] != "" && md5[sn] != m) clist = add(clist, ++m5bad, sn) }
             END {
-                if (miss)        printf "%d contig(s) not in the reference", miss
-                else if (lenbad) printf "%d contig(s) have another length in the reference", lenbad
-                else if (m5bad)  printf "%d contig(s) have another sequence checksum (M5) in the reference", m5bad
+                if (miss)        printf "%d contig(s) not in the reference (%s%s)", miss, mlist, more(miss)
+                else if (lenbad) printf "%d contig(s) have another length (%s%s)", lenbad, llist, more(lenbad)
+                else if (m5bad)  printf "%d contig(s) have another sequence checksum, M5 (%s%s)", m5bad, clist, more(m5bad)
+                if ((miss || lenbad || m5bad) && names != "-") printf "; the BAM names its reference %s", names
             }' <<< "$hdr")
         if [ -n "$refm" ]; then status=WRONG_REFERENCE; reason="$refm"; out; return; fi
     fi

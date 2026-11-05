@@ -87,6 +87,9 @@ check "scan: truncated BAM is CORRUPT"                 [ "$(pf $B/trunc.bam $R1)
 check "scan: contigs not in reference → WRONG_REFERENCE" [ "$(pf $B/wrongref.bam $R1)" = WRONG_REFERENCE ]
 check "scan: contig length differs → WRONG_REFERENCE"  [ "$(pf $B/lenbad.bam $R1)" = WRONG_REFERENCE ]
 check "scan: M5 checksum differs → WRONG_REFERENCE"    [ "$(pf $B/m5bad.bam $R1)" = WRONG_REFERENCE ]
+check "scan: reason names the missing contigs"          grep -q "not in the reference (1, 2)" $R1/attention.txt
+check "scan: reason gives both lengths"                 grep -q "is 50001 in the BAM, 50000 in the reference" $R1/attention.txt
+check "scan: reason names the contigs whose M5 differs" grep -q "M5 (chr1, chr2)" $R1/attention.txt
 check "scan: read-only folder → NOT_WRITABLE"          [ "$(pf $B/ro/locked.bam $R1)" = NOT_WRITABLE ]
 check "scan: symlinked BAM skipped in folder mode"     not grep -q link.bam $R1/preflight.tsv
 check "scan: summary mentions the skipped symlink"     grep -q "1 symlinked" $D/scan1.out
@@ -217,6 +220,16 @@ cramit link-ref $R1 > $D/link2.out; rc=$?
 check "link-ref: second run links the rest, keeps the others" bash -c "[ $rc -eq 0 ] && grep -qE 'linked now +1$' $D/link2.out && [ -L $B/q/ref_for_bam_reconstruction.fa ]"
 check "link-ref --name: another link name"              bash -c "cramit() { \"$C/cramit\" \"\$@\"; }; cramit link-ref --name myref $R1 > /dev/null && [ -L $B/myref.fa ]"
 
+echo "== redo"
+cramit redo $R2 a.bam $B2/e.bam nosuch > $D/redo1.out 2>&1; rc=$?
+check "redo: a done BAM's CRAM is deleted"              bash -c "grep -q 'CRAM deleted' $D/redo1.out && [ ! -e $B2/a.cram ] && [ ! -e $R2/samples/$(key $B2/a.bam)/status ]"
+check "redo: refuses when the BAM is gone, CRAM kept"   bash -c "grep -q 'only copy' $D/redo1.out && [ -e $B2/e.cram ]"
+check "redo: unknown name and refusal → exit 1"         bash -c "[ $rc -eq 1 ] && grep -q \"matches 'nosuch'\" $D/redo1.out"
+cramit run -t 1 $R2 > /dev/null 2>&1; cramit status $R2 > /dev/null
+check "redo: next run converts it again, with index"    bash -c "[ \"\$(awk -F'\t' -v b=$B2/a.bam '\$5==b{print \$2}' $R2/status.tsv)\" = done ] && [ -s $B2/a.cram.crai ]"
+cramit redo $R1 have_bad > $D/redo2.out 2>&1
+check "redo: a failed BAM is reset, its foreign CRAM left alone" bash -c "grep -q 'left alone' $D/redo2.out && [ \"\$(md5sum < $B/have_bad.cram)\" = '$HAVE_BAD_MD5' ] && [ ! -e $R1/samples/$(key $B/have_bad.bam)/status ]"
+
 echo "== convert (one BAM)"
 X=$D/single; mkdir -p $X/cwd; cp $D/other.bam $X/one.bam; cp $D/other.bam $X/clash.bam; cp $B/coord.cram $X/clash.cram
 (cd $X/cwd && "$C/cramit" convert -r $REF -o $X/out -t 1 $X/one.bam > /dev/null 2>&1); rc=$?
@@ -231,7 +244,7 @@ check "convert: truncated BAM → exit 1, bam_corrupt"    bash -c "[ $rc -eq 1 ]
 cramit convert -r $REF -l $X/l5 $X/clash.bam > /dev/null 2>&1; rc=$?
 check "convert: mismatching existing CRAM → exit 2"     [ $rc -eq 2 ]
 
-echo "== deep-check (aux tags)"
+echo "== deep-check"
 samtools calmd -b $D/other.bam $REF 2>/dev/null | samtools view -h - \
     | awk 'BEGIN{OFS="\t"} /^@/{print;next} {print $0, "RX:Z:ACGTACGT", "MI:Z:"NR}' | S view -b -o $X/tags.bam -
 S view -C -T $REF -o $X/tags.cram $X/tags.bam
@@ -243,6 +256,22 @@ cramit deep-check -r $REF $X/tags.bam $X/tags_bad.cram > /dev/null; rc=$?
 check "deep-check: a changed tag is caught"             [ $rc -eq 1 ]
 mkdir -p $X/t; cp $X/tags.bam $X/t/tags.bam; cp $X/tags_bad.cram $X/t/tags.cram
 check "  ...which the standard validation does not see" cramit convert -r $REF -l $X/l6 $X/t/tags.bam
+# old-BWA style: unmapped reads that keep a CIGAR and MAPQ; no MD/NM in the BAM
+S view -h $D/other.bam | awk 'BEGIN{OFS="\t"} /^@/{print;next} {n++} n%10==0{$2=$2+4} {print}' | S view -b -o $X/unm.bam -
+S view -C -T $REF -o $X/unm.cram $X/unm.bam
+cramit deep-check -r $REF $X/unm.bam $X/unm.cram > $X/dc1.out; rc=$?
+check "deep-check: unmapped CIGAR/MAPQ dropped by CRAM is expected" bash -c "[ $rc -eq 0 ] && grep -q 'CIGAR/MAPQ CRAM does not store  500 (CIGAR 500, MAPQ 500)' $X/dc1.out"
+check "deep-check: MD/NM added by the CRAM reader is expected" bash -c "grep -q 'MD/NM tags by the CRAM reader' $X/dc1.out && grep -q '^IDENTICAL apart' $X/dc1.out"
+S view -h $X/unm.bam | awk 'BEGIN{OFS="\t"} /^@/{print;next} {n++} n==7{$5=11} n==9{$4=$4+1} {print}' | S view -C -T $REF -o $X/unm_bad.cram -
+cramit deep-check -r $REF $X/unm.bam $X/unm_bad.cram > $X/dc2.out; rc=$?
+check "deep-check: counts every difference by field"    bash -c "[ $rc -eq 1 ] && grep -qE 'MAPQ +1' $X/dc2.out && grep -qE 'POS +1' $X/dc2.out && grep -q 'records that differ     2' $X/dc2.out"
+S view -h $X/unm.bam | awk '/^@/{print;next} {n++} n!=20{print}' | S view -C -T $REF -o $X/unm_short.cram -
+cramit deep-check -r $REF $X/unm.bam $X/unm_short.cram > $X/dc3.out; rc=$?
+check "deep-check: a missing read stops the comparison" bash -c "[ $rc -eq 1 ] && grep -q 'stopped at record 20' $X/dc3.out"
+cramit deep-check -r $D/other.bam $X/unm.bam $X/unm.cram > /dev/null 2>&1; rc=$?
+check "deep-check: unreadable reference → exit 2"       [ $rc -eq 2 ]
+cramit deep-check -n 100 $R2 a > $X/dc4.out; rc=$?
+check "deep-check RUN SAMPLE: takes BAM, CRAM, reference from the run" bash -c "[ $rc -eq 0 ] && grep -q 'the first 100' $X/dc4.out && grep -q \"BAM   $B2/a.bam\" $X/dc4.out"
 
 echo "== command line"
 check "cramit help"                                     cramit help

@@ -109,9 +109,16 @@ Deleting BAMs cannot be undone, so it pays to go slowly the first time.
    your pipeline) before deleting.
    *Why:* some tools need extra files next to the reference (GATK wants
    `.fai` and `.dict`). Better to find that out while the BAMs still exist.
-6. **If aux tags matter** (UMIs, methylation), run `cramit deep-check` on a
-   few samples before deleting.
-   *Why:* the standard validation does not compare tags.
+6. **Deep-check a few BAMs before deleting:** at least one per aligner or
+   pipeline version in the folder (the smallest of each is quickest).
+   ```bash
+   cramit deep-check RUN sample                        # one BAM of the run, every record
+   sbatch --wrap "cramit deep-check RUN sample"        # the same as a SLURM job
+   ```
+   *Why:* the standard validation compares names, sequences, qualities and
+   flags. deep-check compares every field and tag, and names the two
+   differences that are expected after CRAM
+   ([details](docs/SPECIAL_CASES.md#what-crams-change-on-purpose)).
 7. **Keep the reference safe:** at a stable path, backed up, never deleted.
    *Why:* a CRAM cannot be read without the exact reference it was made with.
    Losing the reference means losing the data.
@@ -145,9 +152,9 @@ and the BAM is left alone.
 - the CRAM passes `samtools quickcheck`;
 - the CRAM lists the same contigs as the BAM.
 
-Aux tags (UMIs, methylation `MM`/`ML`, …) are kept in the CRAM but are not
-part of the checksum. If they matter for your data, spot-check a few samples
-with `cramit deep-check -r ref.fa.gz sample.bam sample.cram`.
+Positions, CIGAR, mate fields and aux tags (UMIs, methylation `MM`/`ML`, …)
+are kept in the CRAM but are not part of the checksum. `cramit deep-check`
+compares them for a BAM you pick, record by record.
 
 ## Settings
 
@@ -161,6 +168,7 @@ Every command lists its options with `-h`.
 | Parallel BAMs / threads on one machine | `cramit run -j 4 -t 4 RUN` |
 | samtools comes from a module or conda | `export CRAMIT_SETUP="module load samtools/1.21"` (run before samtools is used) |
 | Retry BAMs that failed, after fixing them | add `--retry-failed` to `run` or `submit` |
+| Convert some BAMs again (CRAM changed, reference moved) | `cramit redo RUN sample1 sample2`, then `run` or `submit` |
 
 Put the `export` lines in a small file you `source`, or in your `~/.bashrc`.
 SLURM jobs inherit them.

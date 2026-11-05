@@ -110,5 +110,18 @@ pending_samples() {   # retry_failed(0|1) → key <TAB> bam <TAB> cram
         { print $1, $5, $6 }'
 }
 
+# One BAM of the run, named by its key, BAM or CRAM path, or BAM file name
+# (with or without .bam) → key <TAB> bam <TAB> cram. Fails if none or several match.
+find_sample() {   # name
+    local hits n
+    hits=$(awk -F'\t' -v q="$1" -v qa="$(abspath "$1")" 'NR > 1 {
+        name = $2; sub(/.*\//, "", name); base = name; sub(/\.bam$/, "", base)
+        if ($1 == q || $2 == qa || $3 == qa || name == q || base == q) print }' "$RUN/samples.tsv")
+    n=$(grep -c . <<< "$hits" || true)
+    if [ "$n" -eq 0 ]; then warn "no BAM in $RUN matches '$1'"; return 1; fi
+    if [ "$n" -gt 1 ]; then warn "'$1' matches $n BAMs — name one by its key: $(cut -f1 <<< "$hits" | tr '\n' ' ')"; return 1; fi
+    printf '%s\n' "$hits"
+}
+
 human_bytes() { awk -v b="$1" 'BEGIN{ split("B KiB MiB GiB TiB PiB", u); i = 1
     while (b >= 1024 && i < 6) { b /= 1024; i++ } printf (i == 1 ? "%d %s" : "%.1f %s"), b, u[i] }'; }

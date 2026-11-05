@@ -23,6 +23,7 @@ Every case is decided per BAM. A problem with one BAM never stops the others.
 | `incomplete`, `cancelled` | status | Job ended without a result | [Stopped jobs](#stopped-jobs) |
 | `convert_error`, `validate_error`, `internal_error` | status | Something else went wrong | read `RUN/samples/<key>/convert.log` |
 | `SKIP ...` | delete-bams log | A safety check failed, so the BAM was kept | [Kept BAMs](#bams-that-delete-bams-keeps) |
+| `expected differences` | deep-check | Changes CRAM makes on purpose | [What CRAMs change on purpose](#what-crams-change-on-purpose) |
 
 ---
 
@@ -46,23 +47,49 @@ compress against.
 If the header states no sort order at all, cramit tries to index and keeps
 the index if the reads turn out to be sorted.
 
-### Aux tags are not part of validation
+### Aux tags and other fields are not part of validation
 
-**What happens.** CRAM keeps every aux tag (`RG`, `MD`/`NM`, UMI tags like
-`RX`/`MI`, methylation `MM`/`ML`, ...). But validation compares read names,
-sequences, qualities and flags, not tags. A changed tag would therefore not
-be noticed.
+**What happens.** CRAM keeps every field and aux tag (`RG`, `MD`/`NM`, UMI
+tags like `RX`/`MI`, methylation `MM`/`ML`, ...). But validation compares
+read names, sequences, qualities and flags only. A changed position, CIGAR
+or tag would therefore not be noticed.
 
-**What to do if tags matter** (UMI/duplex consensus, methylation):
+**What to do.** Before deleting, deep-check a few BAMs: at least one per
+aligner or pipeline version in the folder (`samtools view -H x.bam | grep
+'^@PG'` shows it). It matters most when tags carry data (UMI/duplex
+consensus, methylation).
 
 ```bash
-cramit deep-check -r ref.fa.gz sample.bam sample.cram            # every record
-cramit deep-check -r ref.fa.gz -n 1000000 sample.bam sample.cram # first million
+cramit deep-check RUN sample                               # a BAM of a run, every record
+cramit deep-check -n 1000000 RUN sample                    # the first million records
+cramit deep-check -r ref.fa.gz sample.bam sample.cram      # any BAM and CRAM
+sbatch -c 3 --mem 4G -t 8:00:00 --wrap "cramit deep-check RUN sample"   # on SLURM
 ```
 
-It compares every field of every record, tags included. CRAM may store tags
-in another order and regenerates `MD`/`NM`, so a plain text diff of the two
-files always differs. deep-check handles that.
+It reads both files to the end (1 to 1.5 hours per 100 million reads), counts
+the differences by field, shows the first few, and exits with 0 (identical),
+1 (different) or 2 (could not read a file). Tags are compared regardless of
+their order. Two differences are expected and listed separately; see the
+next section.
+
+### What CRAMs change on purpose
+
+deep-check lists these under "expected differences" and still reports
+IDENTICAL. Neither one affects what downstream tools compute.
+
+**Unmapped reads lose their CIGAR and MAPQ.** CRAM does not store the CIGAR
+or MAPQ of a read flagged unmapped (`0x4`), so they come back as `*` and
+`0`. Some aligners, notably older BWA, leave values there, e.g. on reads
+hanging over the end of a contig that BWA then flags unmapped. The SAM
+specification says that for unmapped reads no assumption can be made about
+these fields; Picard's `ValidateSamFile` reports a MAPQ on an unmapped read
+as an error, and `CleanSam` sets it to 0. Variant callers, coverage tools and realignment
+(`samtools fastq`, `RevertSam`) do not use them. Expect anything from none
+to a few percent of the unmapped reads in older data.
+
+**`MD` and `NM` tags appear.** When samtools reads a CRAM, it computes `MD`
+and `NM` from the reference and adds them to every mapped read that has
+none. If the BAM had them, they come back unchanged.
 
 ### Symlinked BAMs
 
@@ -107,6 +134,17 @@ Status: `wrong_reference`.
 quietly stores the reference sequence inside the CRAM, so the file comes out
 larger than expected and is tied to the wrong reference. Typical causes:
 GRCh37 vs GRCh38, `1` vs `chr1` naming, a folder that mixes references.
+
+**Finding the right reference.** The reason in `attention.txt` names the
+contigs that don't match, and the reference the BAM's header names (its
+`AS`/`UR` tags), if any. Then:
+
+- contigs missing: another naming (`1` vs `chr1`) or another build;
+- another length: another build (GRCh37 vs GRCh38) or patch level;
+- same names and lengths, another checksum (`M5`): the same build, prepared
+  differently. Compare with `samtools dict ref.fa`. A common case is chrY:
+  some GRCh37 references (hs37d5) mask its pseudo-autosomal regions with N,
+  others don't; when only Y differs, try the other one.
 
 **What to do.** Use one run per reference: put the set-aside BAMs in a list
 and scan it into a new run folder with the right `-r`.
@@ -198,8 +236,9 @@ fails, the BAM is kept and the reason is written to
 | `contigs_differ` | The CRAM header no longer lists the same contigs as the BAM |
 | `bam_unreadable`, `cram_unreadable` | samtools cannot read the header |
 
-To redo a BAM whose CRAM changed: delete the CRAM and run
-`cramit run --retry-failed RUN`.
+To make a CRAM again (it changed, or it was made while the reference sat at
+another path): `cramit redo RUN sample`, then `cramit run RUN` or
+`cramit submit RUN`. redo deletes the CRAM only while its BAM is still there.
 
 ### Validation failed
 
